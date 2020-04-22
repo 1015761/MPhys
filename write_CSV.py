@@ -17,9 +17,10 @@ def time_to_index(time, cadence = 2, min_time = 0.008333):
 		index.append(int((t-min_time)/interval))
 	return index
 
+def keep_cond(label):
+	return True if int(label)==1 else False
 
-
-def read_PHT(sec, mode = 'Time'):
+def read_PHT(sec, mode = 'Time', with_laels = True):
 
 	'''
 	Reads PHT output for a given sector
@@ -87,188 +88,281 @@ def read_PHT(sec, mode = 'Time'):
 
 	for tic in TICs:
 		if not is_TOI[tic]:
-			this_sec[tic] = [tic, sec, output[tic], tic_radius[tic], label[tic], "CTC", len(output[tic])]
+			if with_label:
+				this_sec[tic] = [tic, sec, output[tic], tic_radius[tic], label[tic], "CTC", len(output[tic])]
+			else:
+				this_sec[tic] = [tic, sec, output[tic], tic_radius[tic], len(output[tic])]
 	print("CTC sector {} done".format(sec))
 	return this_sec
 
-def write_CSV(sec_list, TOIs = True, balance = True):
+
+
+
+
+
+def write_CSV(sec_list, TOIs = True, balance = True, with_label = True):
 
 	'''
 	Writes TICs.csv - the list of TICS to be analysed
 	'''
 
+	#TODO: Look at sec_list for lcs to be predicted - how to input?
 
-	if os.name == 'nt':
-		indir = 'C:/Users/blake/MPhys'
-	elif os.name == 'posix':
-		indir = '/mnt/zfsusers/blakeland/Documents/MPhys'
+	if with_label:
 
-	filename = "{}/TICs.csv".format(indir)
-	if os.name == 'nt':
-		with open(filename, 'w', newline = '') as file:
-			writer = csv.writer(file)
-			writer.writerow(['ID', 'TIC', 'Sector', 'Times', 'Radius', 'Label', 'Mode', 'N_transits'])
-	elif os.name=='posix':
-		with open(filename, 'w') as file:
-			writer = csv.writer(file)
-			writer.writerow(['ID', 'TIC', 'Sector', 'Times', 'Radius', 'Label', 'Mode', 'N_transits'])
-	
-	def keep_cond(label):
-		return True if int(label)==1 else False
+		if os.name == 'nt':
+			indir = 'C:/Users/blake/MPhys'
+		elif os.name == 'posix':
+			indir = '/mnt/zfsusers/blakeland/Documents/MPhys'
 
-
-	sec_tics = {}
-	if os.name=='nt':
-		n_tic=0
-		n_keep=0
-		n_trans=0
-
-		for sec in sec_list:
-			sec_tics[sec] = read_PHT(sec)
-		for sec in sec_tics:
-			for tic in sec_tics[sec]:
-				n_tic += 1
-
-				#Number of marked times
-				n_trans += len(sec_tics[sec][tic][2])
-
-				if keep_cond(sec_tics[sec][tic][4]):
-					n_keep += len(sec_tics[sec][tic][2])
-
-				with open(filename, 'a', newline = '') as file:
-					writer = csv.writer(file)
-					writer.writerow([n_tic, *sec_tics[sec][tic]])
+		filename = "{}/TICs.csv".format(indir)
+		if os.name == 'nt':
+			with open(filename, 'w', newline = '') as file:
+				writer = csv.writer(file)
+				writer.writerow(['ID', 'TIC', 'Sector', 'Times', 'Radius', 'Label', 'Mode', 'N_transits'])
+		elif os.name=='posix':
+			with open(filename, 'w') as file:
+				writer = csv.writer(file)
+				writer.writerow(['ID', 'TIC', 'Sector', 'Times', 'Radius', 'Label', 'Mode', 'N_transits'])
+		
 
 
 
+		sec_tics = {}
+		if os.name=='nt':
+			n_tic=0
+			n_keep=0
+			n_trans=0
 
-		if TOIs:
-			TOI_tics = read_TOIs()
-			for sec in range(1, 19):
-				for tic in TOI_tics[sec]:
-
-					n_tic+=1
-					n_trans += len(TOI_tics[sec][tic][2])
-					n_keep += len(TOI_tics[sec][tic][2])
-
-					with open(filename, 'a', newline = '') as file:
-						writer = csv.writer(file)
-						writer.writerow([n_tic, *TOI_tics[sec][tic]])
-
-	elif os.name == 'posix':
-		n_tic = 0
-		n_keep = 0
-		n_trans = 0
-		for sec in sec_list:
-			sec_tics[sec] = read_PHT(sec)
-
+			for sec in sec_list:
+				sec_tics[sec] = read_PHT(sec)
 			for sec in sec_tics:
 				for tic in sec_tics[sec]:
-
 					n_tic += 1
+
+					#Number of marked times
 					n_trans += len(sec_tics[sec][tic][2])
 
 					if keep_cond(sec_tics[sec][tic][4]):
 						n_keep += len(sec_tics[sec][tic][2])
 
-					with open(filename, 'a') as file:
+					with open(filename, 'a', newline = '') as file:
 						writer = csv.writer(file)
 						writer.writerow([n_tic, *sec_tics[sec][tic]])
 
-						#n_trans += len(sec_tics[sec][tic][2])
-
-
-		if TOIs:
-			TOI_tics = read_TOIs()
-			#print(TOI_tics)
-			for sec in range(1, 39):
-				#try:
-				for tic in TOI_tics[sec]:
-					n_tic+=1
-					n_trans += len(TOI_tics[sec][tic][2])
-					n_keep += len(TOI_tics[sec][tic][2])
-
-					with open(filename, 'a') as file:
-						writer = csv.writer(file)
-						writer.writerow([n_tic, *TOI_tics[sec][tic]])
-#				except KeyError:
-#					print("Couldn't find TOIs for sector {}".format(sec))
-
-	if balance:
-		#Balance data set with too many 'planets' by taking random transits
-		n_rand =0
-		#I want to first check that there are more positives than negatives
-
-		print(n_keep)
-		print(n_trans)
-
-
-		while n_keep >= 0.5*n_trans:
-			#If so, take random tic (that has marked transits)
-
-			#Constrain to chosen sectors
-			
-
-			rand_sec = choice(sec_list)
-
-			filename_PHT = '{}_Data/PHT_output_{}.csv'.format(indir, rand_sec)
-
-			PHT_file = pd.read_csv(filename_PHT, error_bad_lines = False)
-			
-
-			TIC_list = np.array(PHT_file['TIC_ID'])
-
-			times_list = np.array(PHT_file['db_peak'])
-
-			#print(times_list)
-
-			TIC_times = pd.DataFrame(times_list, index = TIC_list)
-
-			this_sec = list(sec_tics[rand_sec].keys())
 
 
 
 			if TOIs:
-				all_TOIs = list(TOI_tics[rand_sec].keys())
-				mask = (TIC_list>0) & (times_list != '[0]') & (~np.isin(TIC_list, this_sec)) & (~np.isin(TIC_list, all_TOIs)) # & (not np.isnan(times_list))
-			else:
-				mask = (TIC_list>0) & (times_list != '[0]') & (~np.isin(TIC_list, this_sec))# & (~np.isnan(times_list))
+				TOI_tics = read_TOIs()
+				for sec in range(1, 19):
+					for tic in TOI_tics[sec]:
+
+						n_tic+=1
+						n_trans += len(TOI_tics[sec][tic][2])
+						n_keep += len(TOI_tics[sec][tic][2])
+
+						with open(filename, 'a', newline = '') as file:
+							writer = csv.writer(file)
+							writer.writerow([n_tic, *TOI_tics[sec][tic]])
+
+		elif os.name == 'posix':
+			n_tic = 0
+			n_keep = 0
+			n_trans = 0
+			for sec in sec_list:
+				sec_tics[sec] = read_PHT(sec)
+
+				for sec in sec_tics:
+					for tic in sec_tics[sec]:
+
+						n_tic += 1
+						n_trans += len(sec_tics[sec][tic][2])
+
+						if keep_cond(sec_tics[sec][tic][4]):
+							n_keep += len(sec_tics[sec][tic][2])
+
+						with open(filename, 'a') as file:
+							writer = csv.writer(file)
+							writer.writerow([n_tic, *sec_tics[sec][tic]])
+
+							#n_trans += len(sec_tics[sec][tic][2])
 
 
-			good_tics = list(TIC_list[mask])
-			#print(len(good_tics))
-			#print(np.array(good_tics))
+			if TOIs:
+				TOI_tics = read_TOIs()
+				#print(TOI_tics)
+				for sec in range(1, 39):
+					#try:
+					for tic in TOI_tics[sec]:
+						n_tic+=1
+						n_trans += len(TOI_tics[sec][tic][2])
+						n_keep += len(TOI_tics[sec][tic][2])
 
-			if len(good_tics)==0:
+						with open(filename, 'a') as file:
+							writer = csv.writer(file)
+							writer.writerow([n_tic, *TOI_tics[sec][tic]])
+	#				except KeyError:
+	#					print("Couldn't find TOIs for sector {}".format(sec))
+
+		if balance:
+			#Balance data set with too many 'planets' by taking random transits
+			n_rand =0
+			#I want to first check that there are more positives than negatives
+
+			print(n_keep)
+			print(n_trans)
+
+
+			while n_keep >= 0.5*n_trans:
+				#If so, take random tic (that has marked transits)
+
+				#Constrain to chosen sectors
 				
-				continue
+
+				rand_sec = choice(sec_list)
+
+				filename_PHT = '{}_Data/PHT_output_{}.csv'.format(indir, rand_sec)
+
+				PHT_file = pd.read_csv(filename_PHT, error_bad_lines = False)
+				
+
+				TIC_list = np.array(PHT_file['TIC_ID'])
+
+				times_list = np.array(PHT_file['db_peak'])
+
+				#print(times_list)
+
+				TIC_times = pd.DataFrame(times_list, index = TIC_list)
+
+				this_sec = list(sec_tics[rand_sec].keys())
 
 
 
-			rand_tic = choice(good_tics)
+				if TOIs:
+					all_TOIs = list(TOI_tics[rand_sec].keys())
+					mask = (TIC_list>0) & (times_list != '[0]') & (~np.isin(TIC_list, this_sec)) & (~np.isin(TIC_list, all_TOIs)) # & (not np.isnan(times_list))
+				else:
+					mask = (TIC_list>0) & (times_list != '[0]') & (~np.isin(TIC_list, this_sec))# & (~np.isnan(times_list))
 
-			rand_times = [ float(i) for i in TIC_times[0][rand_tic][1:-1].split(',')]
 
+				good_tics = list(TIC_list[mask])
+				#print(len(good_tics))
+				#print(np.array(good_tics))
 
-			if os.name=='posix':
-				with open(filename, 'a') as file:
-					writer = csv.writer(file)
-					writer.writerow([n_tic, rand_tic, rand_sec, rand_times, -99, 0, 'Random'])
-			elif os.name=='nt':
-				with open(filename, 'a', newline = '') as file:
-					writer = csv.writer(file)
-					writer.writerow([n_tic, rand_tic, rand_sec, rand_times, -99, 0, 'Random'])
+				if len(good_tics)==0:
 					
-			n_tic+=1
-			n_rand += 1
-			n_trans += len(rand_times)
-
-			if n_rand%100==0:
-				print("{} random TICs added".format(n_rand))
+					continue
 
 
 
-		print('Chosen {} random TICs from sectors {} to balance the training set'.format(n_rand, sec_list))
+				rand_tic = choice(good_tics)
+
+				rand_times = [ float(i) for i in TIC_times[0][rand_tic][1:-1].split(',')]
+
+
+				if os.name=='posix':
+					with open(filename, 'a') as file:
+						writer = csv.writer(file)
+						writer.writerow([n_tic, rand_tic, rand_sec, rand_times, -99, 0, 'Random'])
+				elif os.name=='nt':
+					with open(filename, 'a', newline = '') as file:
+						writer = csv.writer(file)
+						writer.writerow([n_tic, rand_tic, rand_sec, rand_times, -99, 0, 'Random'])
+						
+				n_tic+=1
+				n_rand += 1
+				n_trans += len(rand_times)
+
+				if n_rand%100==0:
+					print("{} random TICs added".format(n_rand))
+
+
+
+			print('Chosen {} random TICs from sectors {} to balance the training set'.format(n_rand, sec_list))
+
+
+
+	else:
+
+		if os.name == 'nt':
+			indir = 'C:/Users/blake/MPhys'
+		elif os.name == 'posix':
+			indir = '/mnt/zfsusers/blakeland/Documents/MPhys'
+
+		filename = "{}/TICs_no_label.csv".format(indir)
+		if os.name == 'nt':
+			with open(filename, 'w', newline = '') as file:
+				writer = csv.writer(file)
+				writer.writerow(['ID', 'TIC', 'Sector', 'Times', 'Radius', 'N_transits'])
+		elif os.name=='posix':
+			with open(filename, 'w') as file:
+				writer = csv.writer(file)
+				writer.writerow(['ID', 'TIC', 'Sector', 'Times', 'Radius', 'N_transits'])
+		
+
+
+		sec_tics = {}
+		if os.name=='nt':
+			n_tic=0
+			n_keep=0
+			n_trans=0
+
+			for sec in sec_list:
+				sec_tics[sec] = read_PHT(sec)
+			for sec in sec_tics:
+				for tic in sec_tics[sec]:
+					n_tic += 1
+
+					#Number of marked times
+					n_trans += len(sec_tics[sec][tic][2])
+
+					if keep_cond(sec_tics[sec][tic][4]):
+						n_keep += len(sec_tics[sec][tic][2])
+
+					with open(filename, 'a', newline = '') as file:
+						writer = csv.writer(file)
+						writer.writerow([n_tic, *sec_tics[sec][tic]])
+
+
+
+
+			if TOIs:
+				TOI_tics = read_TOIs()
+				for sec in range(1, 19):
+					for tic in TOI_tics[sec]:
+
+						n_tic+=1
+						n_trans += len(TOI_tics[sec][tic][2])
+						n_keep += len(TOI_tics[sec][tic][2])
+
+						with open(filename, 'a', newline = '') as file:
+							writer = csv.writer(file)
+							writer.writerow([n_tic, *TOI_tics[sec][tic]])
+
+		elif os.name == 'posix':
+			n_tic = 0
+			n_keep = 0
+			n_trans = 0
+			for sec in sec_list:
+				sec_tics[sec] = read_PHT(sec)
+
+				for sec in sec_tics:
+					for tic in sec_tics[sec]:
+
+						n_tic += 1
+						n_trans += len(sec_tics[sec][tic][2])
+
+						if keep_cond(sec_tics[sec][tic][4]):
+							n_keep += len(sec_tics[sec][tic][2])
+
+						with open(filename, 'a') as file:
+							writer = csv.writer(file)
+							writer.writerow([n_tic, *sec_tics[sec][tic]])
+
+							#n_trans += len(sec_tics[sec][tic][2])
+
+
 
 
 

@@ -365,7 +365,7 @@ def time_to_index(time, start_time =0.008333,  cadence = 2):
 
 	return index
 
-def get_tics(indir = dir):
+def get_tics(indir = dir, with_labels = True):
 	'''
 	Reads list of TICs that have been passed through PHT
 
@@ -383,8 +383,10 @@ def get_tics(indir = dir):
 		dirname = "{}/{}".format(indir, "MPhys")
 	elif os.name == 'posix':
 		dirname = "/mnt/zfsusers/blakeland/Documents/MPhys"
-
-	filename = "{}/TICs.csv".format(dirname)
+	if with_labels:
+		filename = "{}/TICs.csv".format(dirname)
+	else:
+		filename = "{}/TICs_no_label.csv"
 
 
 	file = pd.read_csv(filename)
@@ -394,7 +396,10 @@ def get_tics(indir = dir):
 	sectors = list(file['Sector'])
 	times_str = list(file['Times'])
 	radius = list(file['Radius'])
-	label = list(file['Label'])
+	if with_labels:
+		label = list(file['Label'])
+	else:
+		label = np.zeros(len(TICs))
 	n_trans = list(file['N_transits'])
 
 
@@ -451,5 +456,7 @@ def get_tics(indir = dir):
 		else:
 			n_trans_dict[tic] = {sec: n_trans[i]}
 
-
-	return output, star_radii, TIC_list, labels, n_trans_dict
+	if with_labels:
+		return output, star_radii, TIC_list, labels, n_trans_dict
+	else:
+		return output, star_radii, TIC_list, n_trans_dict

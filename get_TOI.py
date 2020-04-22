@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from lightkurve.utils import btjd_to_astropy_time
 from astropy.time import Time
 from random import randint
 import csv
